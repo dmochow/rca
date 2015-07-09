@@ -1,4 +1,4 @@
-function [Wsub,A,W,dGenSort] = rcaTrain(Rxx,Ryy,Rxy,K,C)
+function [Wsub,A,W,dGenSort,K] = rcaTrain(Rxx,Ryy,Rxy,K,C)
 % [WSUB,A,W]=RCATRAIN(RXX,RYY,RXY,[K],[C])
 %
 % compute spatial filters maximizing reliability across trials given precomputed auto- and cross-covariance matrices 
@@ -38,7 +38,8 @@ function [Wsub,A,W,dGenSort] = rcaTrain(Rxx,Ryy,Rxy,K,C)
 % Ryy=Ryy(goodIndx,goodIndx);
 % Rxy=Rxy(goodIndx,goodIndx);
 if sum(isnan(Rxx(:)))~=0 || sum(isnan(Ryy(:)))~=0 || sum(isnan(Rxy(:)))~=0
-    error('Covariance matrices cannot contain NaNs');
+    warning('Covariance matrices contain NaNs: setting to zero...');
+    Rxx(isnan(Rxx))=0; Ryy(isnan(Ryy))=0; Rxy(isnan(Rxy))=0; 
 end
 %Rxx(isnan(Rxx))=0; Ryy(isnan(Ryy))=0; Rxy(isnan(Rxy))=0; 
 % end temporary
@@ -53,7 +54,7 @@ if nargin<4 || isempty(K)
     K=length(diag(eigDiag))-indxKnee;
     %thresh=0.6; % conservative for now
     %K=find(propExpl>thresh,1,'first');
-    fprintf('Using %d bases to diagonalize pooled autocovariance \n',K);
+    fprintf('Using %d bases to diagonalize pooled autocovariance \n',K+1);
 end
 
 [Vpool,Dpool]=eig(Rxx+Ryy); 
@@ -64,10 +65,10 @@ Rw=Vpool(:,end-K:end)*diag(1./dPool)*Vpool(:,end-K:end)'*(Rxy+Rxy');  % regulari
 
 [Vgen,Dgen]=eig(Rw);  % compute generalized eigenvalues/eigenvectors
 dGen=diag(Dgen);
-[dGenSort,b]=sort(real(dGen)); 
+%[dGenSort,b]=sort(real(dGen)); 
+[dGenSort,b]=sort(abs(dGen));  % 11/18/14: complex RCA (?)
 W=Vgen(:,b(end:-1:1)); % in case not sorted
-W=real(W);  % ignore small imaginary component
-
+%W=real(W);  % ignore small imaginary component
 
 Wsub=W(:,1:C);  % return only selected number of components
 Rpool=0.5*(Rxx+Ryy);  

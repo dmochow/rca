@@ -1,8 +1,8 @@
 function [sumXX,sumYY,sumXY,nPointsInXX,nPointsInYY,nPointsInXY]=preComputeRcaCovariances(data,condRange,subjRange)
 % [SUMXX,SUMYY,SUMXY,NPOINTSINXX,NPOINTSINYY,NPOINTSINXY]=PRECOMPUTERCACOVARIANCES(DATA)
 % 
-% take in epoched data volume(s) to produce auto- and
-% cross-covariance matrices for input into rcaTrain()
+% take in epoched data volume(s) to produce within- and
+% across-trial covariance matrices for input into rcaTrain()
 %
 % data can either be a 3-D array (samples x channels x trials), or a cell
 % array (conditions x subjects) of 3-D data arrays (as above)

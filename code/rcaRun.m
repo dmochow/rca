@@ -1,4 +1,4 @@
-function [dataOut,W,A,Rxx,Ryy,Rxy,dGen] = rcaRun(data,nReg,nComp,condRange,subjRange,show,locfile)
+function [dataOut,W,A,Rxx,Ryy,Rxy,dGen,h] = rcaRun(data,nReg,nComp,condRange,subjRange,show,locfile)
 % [DATAOUT,W,A,RXX,RYY,RXY]=RCARUN(DATA,[NREG],[NCOMP],[CONDRANGE],[SUBJRANGE],[SHOW],[LOCFILE])
 % perform RCA dimensionality reduction: learn reliability-maximizing filter
 %   and project data into the corresponding space
@@ -29,6 +29,11 @@ function [dataOut,W,A,Rxx,Ryy,Rxy,dGen] = rcaRun(data,nReg,nComp,condRange,subjR
 %   al., 2004, Neuroimage)
 %
 % (c) Jacek P. Dmochowski, 2014
+
+%% TODO:
+% (1) check subplot numbering
+% (2) check preComputeRcaCovariancesLoop for mean centering consistency
+
 if nargin<7 || isempty(locfile), locfile='GSN-HydroCel-128.sfp'; end;
 if nargin<6 || isempty(show), show=1; end;
 if nargin<5 || isempty(subjRange) 
@@ -49,12 +54,18 @@ if nargin<3 || isempty(nComp), nComp=3; end
 if nargin<2 || isempty(nReg), nReg=[]; end
 if nargin<1 || isempty(data), error('At least one argument is required'); end
 
+
+if nComp>nReg, error('number of components cannot exceed the regularization parameter'); end; 
+
+
 % compute un-normalized covariances and keep track of number non-NaN data points
 % in each case
 if iscell(data)
-    [sumXX,sumYY,sumXY,nPointsInXX,nPointsInYY,nPointsInXY]=preComputeRcaCovariances(data,condRange,subjRange);
+    %[sumXX,sumYY,sumXY,nPointsInXX,nPointsInYY,nPointsInXY]=preComputeRcaCovariances(data,condRange,subjRange);
+    [sumXX,sumYY,sumXY,nPointsInXX,nPointsInYY,nPointsInXY]=preComputeRcaCovariancesLoop(data,condRange,subjRange);
 else
-    [sumXX,sumYY,sumXY,nPointsInXX,nPointsInYY,nPointsInXY]=preComputeRcaCovariances(data);
+    %[sumXX,sumYY,sumXY,nPointsInXX,nPointsInYY,nPointsInXY]=preComputeRcaCovariances(data);
+    [sumXX,sumYY,sumXY,nPointsInXX,nPointsInYY,nPointsInXY]=preComputeRcaCovariancesLoop(data);
 end
     
 
@@ -96,7 +107,7 @@ switch ndims(sumXX)
 end
 
 % train RCA spatial filters
-[W,A,~,dGen] = rcaTrain(Rxx,Ryy,Rxy,nReg,nComp);
+[W,A,~,dGen,Kout] = rcaTrain(Rxx,Ryy,Rxy,nReg,nComp);
 
 % project data into RCA space
 if iscell(data)
@@ -109,17 +120,58 @@ if iscell(data)
             dataOut{cond,subj}=rcaProject(thisVolume,W);
         end
     end
+    try
+        catData=cat(3,dataOut{:});
+        muData=nanmean(catData,3);
+        semData=nanstd(catData,[],3)/sqrt(size(catData,3));
+    catch
+        fprintf('could not compute means and sems \n');
+    end
 else
     dataOut = rcaProject(data,W);
+    muData=nanmean(dataOut,3);
+    semData=nanstd(dataOut,[],3)/sqrt(size(dataOut,3));
 end
 
 if show
-    figure
+    h=figure;
     try
-        for c=1:nComp, subplot(2,nComp,c); topoplot(A(:,c), locfile,'electrodes','off'); axis off; end
-        subplot(212); plot(dGen,'*k:');
+        for c=1:nComp
+            subplot(3,nComp,c);
+            topoplot(A(:,c), locfile,'electrodes','off','numcontour',0);
+            title(['RC' num2str(c)]);
+            axis off;
+        end
     catch
-        fprintf('topoplot threw an error; check locfile \n');
+        fprintf('call to topoplot() failed: check locfile. \n');
+        for c=1:nComp, subplot(3,nComp,c); plot(A(:,c),'*k'); end
+        title(['RC' num2str(c)]);
     end
+    
+    try
+        for c=1:nComp
+            subplot(3,nComp,c+nComp);
+            shadedErrorBar([],muData(:,c),semData(:,c),'k');
+            title(['RC' num2str(c) ' time course']);
+            axis tight;
+        end
+    catch
+        fprintf('unable to plot rc means and sems. \n');
+    end
+    
+    try
+        [~,eigs]=eig(Rxx+Ryy);
+        eigs=sort(diag(eigs),'ascend');
+        subplot(325); hold on
+        plot(eigs,'*k:'); 
+        nEigs=length(eigs);
+        plot(nEigs-Kout,eigs(nEigs-Kout),'*g');
+        title('Within-trial covariance spectrum');
+    catch
+        fprintf('unable to plot within-trial covariance spectrum. \n');
+    end
+    
+    subplot(326); plot(dGen,'*k:'); title('Across-trial covariance spectrum');
+    
 end
 

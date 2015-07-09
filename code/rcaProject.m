@@ -21,7 +21,7 @@ if ~iscell(data)
     
     Y=zeros(nSamples,nComp,nTrials);
     for comp=1:nComp
-        Y(:,comp,:)= squeeze ( nansum ( data .* repmat(W(:,comp).',[nSamples 1 nTrials]) , 2 ) )  ;
+        Y(:,comp,:)= squeeze ( nansum ( data .* repmat(W(:,comp)',[nSamples 1 nTrials]) , 2 ) )  ;
     end
     
 else  % cell mode
@@ -37,7 +37,7 @@ else  % cell mode
             if nElectrodes~=size(W,1), error('dimension 2 of data must match dimension 1 of W'); end
             
             for comp=1:nComp
-                Y{c,s}(:,comp,:)= squeeze ( nansum ( data3D .* repmat(W(:,comp).',[nSamples 1 nTrials]) , 2 ) )  ;
+                Y{c,s}(:,comp,:)= squeeze ( nansum ( data3D .* repmat(W(:,comp)',[nSamples 1 nTrials]) , 2 ) )  ;
             end
                                    
         end
