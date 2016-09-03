@@ -34,8 +34,13 @@ fprintf('Selected %d subjects and %d conditions for training... \n',nSubjects,nC
 sumXX=zeros(nCond,nSubjects,nElectrodes,nElectrodes);sumYY=zeros(nCond,nSubjects,nElectrodes,nElectrodes);sumXY=zeros(nCond,nSubjects,nElectrodes,nElectrodes);
 nPointsInXX=zeros(nCond,nSubjects,nElectrodes,nElectrodes);nPointsInYY=zeros(nCond,nSubjects,nElectrodes,nElectrodes);nPointsInXY=zeros(nCond,nSubjects,nElectrodes,nElectrodes);
 
-matlabpool
-
+try
+    matlabpool
+    closePool=1;
+catch
+    parpool
+    closePool=0;
+end
 for cond=1:nCond
     for subj=1:nSubjects
         fprintf('Computing covariances for subject %d and condition %d... \n',subjRange(subj),condRange(cond));
@@ -49,7 +54,7 @@ for cond=1:nCond
         nPairs=size(pindx,1);
         
         
-        if nTrials>30
+        if nTrials>=30
 
             %% compute means
             thisVolume=permute(thisVolume,[2 1 3]); % electrode x sample x trials
@@ -106,8 +111,11 @@ end
 sumXX=squeeze(sumXX); sumYY=squeeze(sumYY); sumXY=squeeze(sumXY);
 nPointsInXX=squeeze(nPointsInXX); nPointsInYY=squeeze(nPointsInYY);  nPointsInXY=squeeze(nPointsInXY);
 
-matlabpool close
-
+if closePool
+    matlabpool close
+else
+    delete(gcp('nocreate'));
+end
 
 
 
